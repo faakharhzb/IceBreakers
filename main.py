@@ -1,3 +1,4 @@
+import asyncio
 import math
 import random
 import typing
@@ -64,9 +65,7 @@ class Main:
         self.break_button_surf = self.font.render(
             "[E] Break", True, (0, 0, 100), "white"
         )
-        self.break_button = Button(
-            self.break_button_surf, (0, 0), show_surround=False
-        )
+        self.break_button = Button(self.break_button_surf, (0, 0), show_surround=False)
 
         self.collect_key_button_surf = self.font.render(
             "[E] Collect Key", True, (0, 0, 100), "white"
@@ -140,15 +139,10 @@ class Main:
                 )
                 self.advance_block = False
 
-                self.max_crystals_needed = (
-                    self.player.crystal_amount * 2
-                )
+                self.max_crystals_needed = self.player.crystal_amount * 2
 
                 self.clicks_per_crystal = (
-                    (
-                        (len(self.images["block"]))
-                        * self.block.need_to_advance
-                    )
+                    ((len(self.images["block"])) * self.block.need_to_advance)
                     // self.max_crystals_needed
                 ) + 1
 
@@ -203,14 +197,10 @@ class Main:
 
         self.break_button.position = self.block.position.copy()
         self.break_button.position.y = (
-            self.block.start_y
-            + math.sin(pg.time.get_ticks() * 0.0065) * 5
+            self.block.start_y + math.sin(pg.time.get_ticks() * 0.0065) * 5
         ) - 50
 
-        if (
-            self.break_button.clicked(self.offset)
-            or pg.key.get_just_pressed()[pg.K_e]
-        ):
+        if self.break_button.clicked(self.offset) or pg.key.get_just_pressed()[pg.K_e]:
             if not self.player.crystal_amount:
                 self.show_message("You have no crystals.", dur=1500)
                 return
@@ -232,8 +222,7 @@ class Main:
 
         self.collect_key_button.position = self.key.position.copy()
         self.collect_key_button.position.y = (
-            self.block.start_y
-            + math.sin(pg.time.get_ticks() * 0.0065) * 5
+            self.block.start_y + math.sin(pg.time.get_ticks() * 0.0065) * 5
         ) - 50
 
         if (
@@ -248,21 +237,14 @@ class Main:
 
     def spawn_crystals(self) -> None:
         self.crystals.extend(
-            [
-                Crystal(self.images["crystal"], pos)
-                for pos in self.crystal_pos
-            ]
+            [Crystal(self.images["crystal"], pos) for pos in self.crystal_pos]
         )
 
     def spawn_snow(self) -> None:
         self.particles.extend(
             [
-                Particle(
-                    (i, -20 + self.offset.y), random.uniform(1.3, 3.5)
-                )
-                for i in range(
-                    -100, self.w + 100, random.randint(10, 100)
-                )
+                Particle((i, -20 + self.offset.y), random.uniform(1.3, 3.5))
+                for i in range(-100, self.w + 100, random.randint(10, 100))
             ]
         )
 
@@ -349,16 +331,12 @@ class Main:
         else:
             self.advance_block = False
 
-    def run(self) -> None:
+    async def main(self) -> None:
         while self.running:
             self.screen.fill((0, 0, 20))
 
-            self.offset += (
-                self.player.position - self.size // 2 - self.offset
-            ) // 30
-            self.offset = pg.Vector2(
-                int(self.offset.x), int(self.offset.y)
-            )
+            self.offset += (self.player.position - self.size // 2 - self.offset) // 30
+            self.offset = pg.Vector2(int(self.offset.x), int(self.offset.y))
 
             self.tilemap.draw(self.screen, self.images, self.offset)
 
@@ -405,9 +383,7 @@ class Main:
 
             self.player.update(
                 self.dt,
-                self.tilemap.get_physics_tiles(
-                    pg.Vector2(self.player.rect.center)
-                ),
+                self.tilemap.get_physics_tiles(pg.Vector2(self.player.rect.center)),
             )
 
             if self.player.velocity.y >= 40:
@@ -428,10 +404,7 @@ class Main:
                 if elapsed < self.message_duration:
                     if elapsed > self.message_duration / 2:
                         message = self.message.copy()
-                        alpha = (
-                            (1 - (elapsed / self.message_duration))
-                            * 255
-                        ) % 255
+                        alpha = ((1 - (elapsed / self.message_duration)) * 255) % 255
                         message.set_alpha(alpha)
                     else:
                         message = self.message
@@ -444,12 +417,11 @@ class Main:
                     self.message_duration = 0
 
             self.dt = (self.clock.tick() / 1000) * 60
+            await asyncio.sleep(0)
             pg.display.flip()
 
             if pg.time.get_ticks() - self.fps_update_delay >= 500:
-                pg.display.set_caption(
-                    f"IceBreakers | FPS: {self.clock.get_fps():.1f}"
-                )
+                pg.display.set_caption(f"IceBreakers | FPS: {self.clock.get_fps():.1f}")
                 self.fps_update_delay = pg.time.get_ticks()
 
             for event in pg.event.get():
@@ -462,4 +434,4 @@ class Main:
 
 if __name__ == "__main__":
     main = Main()
-    main.run()
+    asyncio.run(main.main())
