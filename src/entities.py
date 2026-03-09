@@ -24,10 +24,7 @@ class Entity:
             for state, frames in image.items():
                 self.animations[state] = cycle(frames)
                 self.flipped_animations[state] = cycle(
-                    [
-                        pg.transform.flip(frame, True, False)
-                        for frame in frames
-                    ]
+                    [pg.transform.flip(frame, True, False) for frame in frames]
                 )
 
             self.state = next(iter(image))
@@ -35,9 +32,7 @@ class Entity:
             self.image = next(self.image_iter)
 
         else:
-            raise TypeError(
-                "image must be Surface or dict[str, list[Surface]]"
-            )
+            raise TypeError("image must be Surface or dict[str, list[Surface]]")
 
         self.rect = self.image.get_rect(center=pos)
         self.position = pg.Vector2(pos)
@@ -59,20 +54,12 @@ class Entity:
         if self._flipped != flipped:
             self._flipped = flipped
             if self.image_iter:
-                animations = (
-                    self.flipped_animations
-                    if flipped
-                    else self.animations
-                )
+                animations = self.flipped_animations if flipped else self.animations
                 self.image_iter = animations[self.state]
                 self.image = next(self.image_iter)
 
     def set_state(self, state: str) -> None:
-        animations = (
-            self.flipped_animations
-            if self._flipped
-            else self.animations
-        )
+        animations = self.flipped_animations if self._flipped else self.animations
 
         if state != self.state and state in animations:
             self.state = state
@@ -88,9 +75,7 @@ class Entity:
             "left": False,
         }
 
-        self.velocity.y = min(
-            self.velocity.y + 0.045, self.terminal_velocity
-        )
+        self.velocity.y = min(self.velocity.y + 0.045, self.terminal_velocity)
 
         self.position.x += self.velocity.x * self.speed * dt
         self.rect.x = self.position.x
@@ -100,12 +85,9 @@ class Entity:
                 if self.velocity.x > 0:
                     self.rect.right = tile.left
                     self.collisions["right"] = True
-                elif self.velocity.x < 0:
+                if self.velocity.x < 0:
                     self.rect.left = tile.right
                     self.collisions["left"] = True
-                else:
-                    self.collisions["right"] = False
-                    self.collisions["left"] = False
 
                 self.position.x = self.rect.x
 
@@ -117,12 +99,9 @@ class Entity:
                 if self.velocity.y > 0:
                     self.rect.bottom = tile.top
                     self.collisions["bottom"] = True
-                elif self.velocity.y < 0:
+                if self.velocity.y < 0:
                     self.rect.top = tile.bottom
                     self.collisions["top"] = True
-                else:
-                    self.collisions["top"] = False
-                    self.collisions["bottom"] = False
 
                 self.velocity.y = 0
                 self.position.y = self.rect.y
@@ -133,16 +112,11 @@ class Entity:
             self.velocity.y = 0
 
         if self.image_iter:
-            if (
-                pg.time.get_ticks() - self.frame_timer
-                >= self.frame_delay
-            ):
+            if pg.time.get_ticks() - self.frame_timer >= self.frame_delay:
                 self.image = next(self.image_iter)
                 self.frame_timer = pg.time.get_ticks()
 
-    def draw(
-        self, screen: pg.Surface, offset: pg.Vector2 = pg.Vector2()
-    ) -> None:
+    def draw(self, screen: pg.Surface, offset: pg.Vector2 = pg.Vector2()) -> None:
         screen.blit(self.image, self.position - offset)
 
 
@@ -160,6 +134,8 @@ class Player(Entity):
         self.crystal_amount = crystal_amount
         self.crystal_max = 2
 
+        self.jumped = False
+
     def update(self, dt: float, surround_tiles: list[pg.Rect]) -> None:
         if self.velocity.x != 0:
             self.set_state("moving")
@@ -171,13 +147,15 @@ class Player(Entity):
 
         key = pg.key.get_pressed()
 
+        if key[pg.K_w] and self.collisions["bottom"]:
+            self.velocity.y = -6.8
+            self.jumped = True
+        else:
+            self.jumped = False
+
         if key[pg.K_a]:
             self.velocity.x = -1
         if key[pg.K_d]:
             self.velocity.x = 1
-        if key[pg.K_w] and self.collisions["bottom"]:
-            self.velocity.y = -6.9
 
-        self.crystal_amount = max(
-            0, min(self.crystal_max, self.crystal_amount)
-        )
+        self.crystal_amount = max(0, min(self.crystal_max, self.crystal_amount))

@@ -1,6 +1,6 @@
-import asyncio
 import math
 import random
+from tempfile import TemporaryFile
 import typing
 import pygame as pg
 from pygame.typing import ColorLike
@@ -9,7 +9,7 @@ from src.ice import Crystal, Block
 from src.particles import Particle
 from src.entities import Player
 from src.tilemap import TileMap
-from src.utilities import load_image, load_images
+from src.utilities import load_image, load_images, load_audio
 from src.gui_elements import Button
 from src.puzzles import Clicker, SkillCheck
 from src.key import Key
@@ -42,11 +42,18 @@ class Main:
             "key": load_image("key.png", "alpha", 3),
             "small_key": load_image("key.png", "alpha", 1.7),
         }
+        self.sfx = {
+            "step": load_audio("step.ogg", 0.3),
+            "jump": load_audio("jump.ogg", 0.35),
+            "click": load_audio("click.ogg", 0.5),
+            "win": load_audio("win.ogg", 0.4),
+            "loss": load_audio("loss.ogg"),
+        }
 
         self.tilemap = TileMap(32, 1.5)
         self.load_level(0)
 
-        self.font = pg.Font(size=40)
+        self.font = pg.Font("assets/fonts/Minecraft-regular.otf", 32)
 
         self.message = 0
         self.message_rect = 0
@@ -59,19 +66,21 @@ class Main:
             "[E] Extract", True, (0, 0, 100), "white"
         )
         self.extract_button = Button(
-            self.extract_button_surf, (0, 0), show_surround=False
+            self.extract_button_surf, (0, 0), self.sfx["click"], False
         )
 
         self.break_button_surf = self.font.render(
             "[E] Break", True, (0, 0, 100), "white"
         )
-        self.break_button = Button(self.break_button_surf, (0, 0), show_surround=False)
+        self.break_button = Button(
+            self.break_button_surf, (0, 0), self.sfx["click"], False
+        )
 
         self.collect_key_button_surf = self.font.render(
             "[E] Collect Key", True, (0, 0, 100), "white"
         )
         self.collect_key_button = Button(
-            self.collect_key_button_surf, (0, 0), show_surround=False
+            self.collect_key_button_surf, (0, 0), self.sfx["click"], False
         )
 
         self.clicker_active = False
@@ -91,7 +100,7 @@ class Main:
 
     def respawn(self) -> None:
         self.player.position = self.player_pos
-        self.player.crystal_amount = 0
+        self.player.crystal_amount = self.player.crystal_max
 
         self.skill_check_active = False
         self.clicker_active = False
@@ -112,6 +121,7 @@ class Main:
             self.key.exists = True
 
     def load_level(self, map_id: typing.SupportsInt) -> None:
+        self.map_id = map_id
         self.tilemap.read("assets/maps/" + str(map_id) + ".json")
 
         self.crystal_pos = []
@@ -125,8 +135,9 @@ class Main:
             if spawner["variant"] == 0:
                 self.player_pos = pg.Vector2(spawner["pos"])
                 self.player = Player(
-                    self.player_pos, self.images["player"], 6.5, 150, 2
+                    self.player_pos, self.images["player"], 6.5, 150, 2 + map_id
                 )
+                self.player.crystal_max = 2 + map_id
             elif spawner["variant"] == 1:
                 pos = spawner["pos"]
                 self.crystal_pos.append(pos)
@@ -151,6 +162,11 @@ class Main:
         self.current_crystal = None
         self.crystal_used = 0
 
+        if hasattr(self, "key"):
+            del self.key
+        if hasattr(self, "new_level_time"):
+            del self.new_level_time
+
     def show_message(
         self, message: str, colour: ColorLike = "white", dur: int = 1000
     ) -> None:
@@ -169,6 +185,8 @@ class Main:
             return
         elif self.skill_check_active:
             return
+        elif not crystal.exists:
+            return
 
         self.extract_button.position = crystal.position.copy()
         self.extract_button.position.y -= 50
@@ -177,6 +195,7 @@ class Main:
             self.extract_button.clicked(self.offset)
             or pg.key.get_just_pressed()[pg.K_e]
         ):
+            self.sfx["click"].play()
             self.current_crystal = self.crystals.index(crystal)
             size = self.size - (self.size // 10)
             pos = (self.size - size) // 2
@@ -201,6 +220,7 @@ class Main:
         ) - 50
 
         if self.break_button.clicked(self.offset) or pg.key.get_just_pressed()[pg.K_e]:
+            self.sfx["click"].play()
             if not self.player.crystal_amount:
                 self.show_message("You have no crystals.", dur=1500)
                 return
@@ -213,6 +233,11 @@ class Main:
         self.break_button.draw(self.screen, self.offset)
 
     def manage_collect_key_button(self) -> None:
+        if hasattr(self, "new_level_time"):
+            if pg.time.get_ticks() - self.new_level_time >= 1000:
+                self.load_level(1 + self.map_id)
+                return
+
         if self.key.position.distance_to(self.player.position) >= 125:
             return
         if self.block.exists:
@@ -229,9 +254,11 @@ class Main:
             self.collect_key_button.clicked(self.offset)
             or pg.key.get_just_pressed()[pg.K_e]
         ):
+            self.sfx["win"].play()
             self.current_keys += 1
             self.key.exists = False
             self.show_message("+1 key collected.", dur=1500)
+            self.new_level_time = pg.time.get_ticks()
 
         self.collect_key_button.draw(self.screen, self.offset)
 
@@ -257,6 +284,8 @@ class Main:
         if not self.skill_check_active:
             return
 
+        self.player.rect
+
         won = self.skill_check.update(self.dt)
         self.skill_check.draw(self.screen)
 
@@ -265,6 +294,8 @@ class Main:
             self.player.crystal_amount += 1
             self.skill_check_active = False
             self.show_message("+1 crystal.")
+
+            self.sfx["win"].play()
 
         if self.player.velocity.x != 0:
             self.skill_check_active = False
@@ -283,9 +314,11 @@ class Main:
         if lost:
             self.clicker_active = False
             self.show_message("Too slow, try again.", dur=1500)
+            self.sfx["loss"].play()
 
         if self.clicker.is_clicked:
             self.crystal_used += 1
+            self.sfx["click"].play()
         if self.crystal_used >= self.clicks_per_crystal:
             self.player.crystal_amount = min(
                 self.player.crystal_max,
@@ -331,7 +364,7 @@ class Main:
         else:
             self.advance_block = False
 
-    async def main(self) -> None:
+    def run(self) -> None:
         while self.running:
             self.screen.fill((0, 0, 20))
 
@@ -366,6 +399,8 @@ class Main:
                 self.block.exists = False
                 self.clicker_active = False
 
+                self.sfx["win"].play()
+
             if not self.block.exists:
                 if not hasattr(self, "key"):
                     pos = self.block.position.copy()
@@ -385,6 +420,18 @@ class Main:
                 self.dt,
                 self.tilemap.get_physics_tiles(pg.Vector2(self.player.rect.center)),
             )
+            if self.player.jumped:
+                self.sfx["jump"].play()
+                self.player.jumped = False
+
+            if self.player.velocity.x != 0 and self.player.velocity.y > -1:
+                if not pg.mixer.get_busy():
+                    self.sfx["step"].play()
+            else:
+                try:
+                    self.sfx["step"].stop()
+                except:
+                    pass
 
             if self.player.velocity.y >= 40:
                 self.respawn()
@@ -417,7 +464,6 @@ class Main:
                     self.message_duration = 0
 
             self.dt = (self.clock.tick() / 1000) * 60
-            await asyncio.sleep(0)
             pg.display.flip()
 
             if pg.time.get_ticks() - self.fps_update_delay >= 500:
@@ -434,4 +480,4 @@ class Main:
 
 if __name__ == "__main__":
     main = Main()
-    asyncio.run(main.main())
+    main.run()
