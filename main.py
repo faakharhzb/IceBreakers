@@ -1,6 +1,5 @@
 import math
 import random
-from tempfile import TemporaryFile
 import typing
 import pygame as pg
 from pygame.typing import ColorLike
@@ -17,6 +16,9 @@ from src.key import Key
 
 class Main:
     def __init__(self) -> None:
+        if not hasattr(pg, "FRect"):
+            raise ImportError("This game requires Pygame Community edition.")
+
         pg.init()
 
         self.w, self.h = 1280, 720
@@ -44,16 +46,17 @@ class Main:
         }
         self.sfx = {
             "step": load_audio("step.ogg", 0.3),
-            "jump": load_audio("jump.ogg", 0.35),
+            "jump": load_audio("jump.ogg", 0.27),
             "click": load_audio("click.ogg", 0.5),
             "win": load_audio("win.ogg", 0.4),
-            "loss": load_audio("loss.ogg"),
+            "loss": load_audio("loss.ogg", 0.5),
         }
 
         self.tilemap = TileMap(32, 1.5)
         self.load_level(0)
 
         self.font = pg.Font("assets/fonts/Minecraft-regular.otf", 32)
+        self.big_font = pg.Font("assets/fonts/Minecraft-BoldItalic.otf", 85)
 
         self.message = 0
         self.message_rect = 0
@@ -80,7 +83,10 @@ class Main:
             "[E] Collect Key", True, (0, 0, 100), "white"
         )
         self.collect_key_button = Button(
-            self.collect_key_button_surf, (0, 0), self.sfx["click"], False
+            self.collect_key_button_surf,
+            (0, 0),
+            self.sfx["click"],
+            False,
         )
 
         self.clicker_active = False
@@ -97,6 +103,32 @@ class Main:
 
         self.dt = 1
         self.running = True
+
+        self.name_surf = self.big_font.render(
+            pg.display.get_caption()[0], True, "white"
+        )
+        self.name_rect = self.name_surf.get_rect(center=(self.w // 2, self.h // 5))
+        self.name_pos = pg.Vector2(self.name_rect.center)
+
+        self.font.set_bold(True)
+        self.font.set_point_size(40)
+        text = self.font.render("Play", True, "white", "black")
+        self.font.set_bold(False)
+        self.font.set_point_size(32)
+
+        self.play_button = Button(
+            text,
+            self.size // 2,
+            self.sfx["click"],
+        )
+
+        self.end_text = "The End.\n\nThank you so much for playing!"
+        self.end_text = self.big_font.render(
+            self.end_text, True, "white", wraplength=self.w
+        )
+        self.end_rect = self.end_text.get_rect(center=self.size // 2)
+
+        self.game_state = "menu"
 
     def respawn(self) -> None:
         self.player.position = self.player_pos
@@ -135,7 +167,11 @@ class Main:
             if spawner["variant"] == 0:
                 self.player_pos = pg.Vector2(spawner["pos"])
                 self.player = Player(
-                    self.player_pos, self.images["player"], 6.5, 150, 2 + map_id
+                    self.player_pos,
+                    self.images["player"],
+                    6.5,
+                    150,
+                    2 + map_id,
                 )
                 self.player.crystal_max = 2 + map_id
             elif spawner["variant"] == 1:
@@ -153,9 +189,14 @@ class Main:
                 self.max_crystals_needed = self.player.crystal_amount * 2
 
                 self.clicks_per_crystal = (
-                    ((len(self.images["block"])) * self.block.need_to_advance)
-                    // self.max_crystals_needed
-                ) + 1
+                    (len(self.images["block"])) * self.block.need_to_advance
+                ) // self.max_crystals_needed
+                if map_id < 2:
+                    self.clicks_per_crystal += 1
+                elif map_id < 4:
+                    self.clicks_per_crystal += 2
+                else:
+                    self.clicks_per_crystal += 3
 
         self.crystals = []
         self.spawn_crystals()
@@ -186,6 +227,8 @@ class Main:
         elif self.skill_check_active:
             return
         elif not crystal.exists:
+            return
+        elif self.clicker_active:
             return
 
         self.extract_button.position = crystal.position.copy()
@@ -234,9 +277,13 @@ class Main:
 
     def manage_collect_key_button(self) -> None:
         if hasattr(self, "new_level_time"):
-            if pg.time.get_ticks() - self.new_level_time >= 1000:
-                self.load_level(1 + self.map_id)
-                return
+            if pg.time.get_ticks() - self.new_level_time >= 2500:
+                if self.map_id < 4:
+                    self.load_level(self.map_id + 1)
+                    return
+                else:
+                    self.game_state = "end"
+                    return
 
         if self.key.position.distance_to(self.player.position) >= 125:
             return
@@ -270,7 +317,10 @@ class Main:
     def spawn_snow(self) -> None:
         self.particles.extend(
             [
-                Particle((i, -20 + self.offset.y), random.uniform(1.3, 3.5))
+                Particle(
+                    (i, self.player.position.y - 500),
+                    random.uniform(1.3, 3.5),
+                )
                 for i in range(-100, self.w + 100, random.randint(10, 100))
             ]
         )
@@ -283,8 +333,6 @@ class Main:
     def manage_skill_check(self) -> None:
         if not self.skill_check_active:
             return
-
-        self.player.rect
 
         won = self.skill_check.update(self.dt)
         self.skill_check.draw(self.screen)
@@ -364,107 +412,152 @@ class Main:
         else:
             self.advance_block = False
 
+    def menu(self) -> None:
+        self.name_rect.centery = (
+            self.name_pos.y + math.sin(pg.time.get_ticks() * 0.005) * 50
+        )
+
+        self.screen.blit(self.name_surf, self.name_rect)
+
+        self.play_button.position = self.size // 2
+
+        if self.play_button.clicked():
+            self.game_state = "game"
+
+        self.play_button.draw(self.screen)
+
+        for particle in self.particles:
+            particle.update(self.dt)
+            particle.draw(self.screen, self.offset)
+
+        self.check_particle_collision()
+        if pg.time.get_ticks() - self.spawn_snow_delay >= 1000:
+            self.spawn_snow()
+            self.spawn_snow_delay = pg.time.get_ticks()
+
+    def game(self) -> None:
+        self.offset += (self.player.position - self.size // 2 - self.offset) // 30
+        self.offset = pg.Vector2(int(self.offset.x), int(self.offset.y))
+
+        self.tilemap.draw(self.screen, self.images, self.offset)
+
+        for particle in self.particles:
+            particle.update(self.dt)
+            particle.draw(self.screen, self.offset)
+
+        for crystal in self.crystals:
+            crystal.update()
+            self.manage_extract_button(crystal)
+            crystal.draw(self.screen, self.offset)
+
+        self.check_particle_collision()
+
+        if pg.time.get_ticks() - self.spawn_snow_delay >= 1000:
+            self.spawn_snow()
+            self.spawn_snow_delay = pg.time.get_ticks()
+
+        self.draw_current_crystals()
+        self.draw_current_keys()
+
+        self.manage_block_break()
+
+        broken = self.block.update(self.advance_block)
+        if broken:
+            self.show_message("You broke the ice block!", dur=2000)
+            self.block.exists = False
+            self.clicker_active = False
+
+            self.sfx["win"].play()
+
+        if not self.block.exists:
+            if not hasattr(self, "key"):
+                pos = self.block.position.copy()
+                pos.y -= 8
+                self.key = Key(self.images["key"], pos)
+
+            self.key.update()
+            self.key.draw(self.screen, self.offset)
+
+            self.manage_collect_key_button()
+
+        self.block.draw(self.screen, self.offset)
+
+        self.manage_break_button()
+
+        self.player.update(
+            self.dt,
+            self.tilemap.get_physics_tiles(pg.Vector2(self.player.rect.center)),
+        )
+        if self.player.jumped:
+            self.sfx["jump"].play()
+            self.player.jumped = False
+
+        if self.player.velocity.x != 0 and self.player.velocity.y > -1:
+            if not self.sfx["step"].get_num_channels():
+                self.sfx["step"].play()
+        else:
+            try:
+                self.sfx["step"].stop()
+            except:
+                pass
+
+        if self.player.velocity.y >= self.player.terminal_velocity:
+            self.respawn()
+
+        self.player.draw(self.screen, self.offset)
+
+        self.manage_skill_check()
+        self.manage_clicker()
+
+        if (
+            self.message
+            and self.message_rect
+            and self.message_start
+            and self.message_duration
+        ):
+            elapsed = pg.time.get_ticks() - self.message_start
+            if elapsed < self.message_duration:
+                if elapsed > self.message_duration / 2:
+                    message = self.message.copy()
+                    alpha = ((1 - (elapsed / self.message_duration)) * 255) % 255
+                    message.set_alpha(alpha)
+                else:
+                    message = self.message
+
+                self.screen.blit(message, self.message_rect)
+            else:
+                self.message = 0
+                self.message_rect = 0
+                self.message_start = 0
+                self.message_duration = 0
+
     def run(self) -> None:
         while self.running:
             self.screen.fill((0, 0, 20))
 
-            self.offset += (self.player.position - self.size // 2 - self.offset) // 30
-            self.offset = pg.Vector2(int(self.offset.x), int(self.offset.y))
+            if self.game_state == "game":
+                self.game()
+            elif self.game_state == "menu":
+                self.menu()
+            elif self.game_state == "end":
+                self.screen.fill((0, 0, 75))
 
-            self.tilemap.draw(self.screen, self.images, self.offset)
+                self.screen.blit(self.end_text, self.end_rect)
 
-            for particle in self.particles:
-                particle.update(self.dt)
-                particle.draw(self.screen, self.offset)
+                for particle in self.particles:
+                    particle.update(self.dt)
+                    particle.draw(self.screen, self.offset)
 
-            for crystal in self.crystals:
-                crystal.update()
-                self.manage_extract_button(crystal)
-                crystal.draw(self.screen, self.offset)
-
-            self.check_particle_collision()
-
-            if pg.time.get_ticks() - self.spawn_snow_delay >= 1000:
-                self.spawn_snow()
-                self.spawn_snow_delay = pg.time.get_ticks()
-
-            self.draw_current_crystals()
-            self.draw_current_keys()
-
-            self.manage_block_break()
-
-            broken = self.block.update(self.advance_block)
-            if broken:
-                self.show_message("You broke the ice block!", dur=2000)
-                self.block.exists = False
-                self.clicker_active = False
-
-                self.sfx["win"].play()
-
-            if not self.block.exists:
-                if not hasattr(self, "key"):
-                    pos = self.block.position.copy()
-                    pos.y -= 8
-                    self.key = Key(self.images["key"], pos)
-
-                self.key.update()
-                self.key.draw(self.screen, self.offset)
-
-                self.manage_collect_key_button()
-
-            self.block.draw(self.screen, self.offset)
-
-            self.manage_break_button()
-
-            self.player.update(
-                self.dt,
-                self.tilemap.get_physics_tiles(pg.Vector2(self.player.rect.center)),
-            )
-            if self.player.jumped:
-                self.sfx["jump"].play()
-                self.player.jumped = False
-
-            if self.player.velocity.x != 0 and self.player.velocity.y > -1:
-                if not pg.mixer.get_busy():
-                    self.sfx["step"].play()
-            else:
-                try:
-                    self.sfx["step"].stop()
-                except:
-                    pass
-
-            if self.player.velocity.y >= 40:
-                self.respawn()
-
-            self.player.draw(self.screen, self.offset)
-
-            self.manage_skill_check()
-            self.manage_clicker()
-
-            if (
-                self.message
-                and self.message_rect
-                and self.message_start
-                and self.message_duration
-            ):
-                elapsed = pg.time.get_ticks() - self.message_start
-                if elapsed < self.message_duration:
-                    if elapsed > self.message_duration / 2:
-                        message = self.message.copy()
-                        alpha = ((1 - (elapsed / self.message_duration)) * 255) % 255
-                        message.set_alpha(alpha)
-                    else:
-                        message = self.message
-
-                    self.screen.blit(message, self.message_rect)
-                else:
-                    self.message = 0
-                    self.message_rect = 0
-                    self.message_start = 0
-                    self.message_duration = 0
+                self.check_particle_collision()
+                if pg.time.get_ticks() - self.spawn_snow_delay >= 1000:
+                    self.spawn_snow()
+                    self.spawn_snow_delay = pg.time.get_ticks()
 
             self.dt = (self.clock.tick() / 1000) * 60
             pg.display.flip()
+
+            if pg.key.get_pressed()[pg.K_p]:
+                self.game_state = "end"
 
             if pg.time.get_ticks() - self.fps_update_delay >= 500:
                 pg.display.set_caption(f"IceBreakers | FPS: {self.clock.get_fps():.1f}")

@@ -36,11 +36,8 @@ class SkillCheck:
                 self.bar.top,
             )
         ).clamp(self.bar)
-        self.goal_moving = False
-        self.goal_move_speed = 15
-        self.goal_target_pos = None
 
-        self.block_in_goal_timer = 0
+        self.block_in_goal_timer = 1.25 / 2
         self.block_in_goal_max = 1.25
 
         self.block_in_goal_surf = pg.Surface(
