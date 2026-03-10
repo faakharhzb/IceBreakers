@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           cd dist
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} ice_breakers${{ matrix.ext }}
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} .
           cd ..
 
       - name: Upload build artifact
