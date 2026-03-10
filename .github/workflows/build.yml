@@ -110,15 +110,16 @@ jobs:
       - name: Archive files
         shell: bash
         run: |
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} main.dist
+          ls
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} main.dist/
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.os }}
           path: |
-            ./main.dist/*.zip
-            ./main.dist/*.tar.gz
+            *.zip
+            *.tar.gz
           compression-level: 0
 
 
