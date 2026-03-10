@@ -101,25 +101,25 @@ jobs:
 
       - name: Run build script
         shell: bash
-        run: python -m nuitka --standalone --assume-yes-for-downloads --follow-imports --output-dir=dist --output-filename=ice_breakers${{ matrix.ext }} --include-data-dir=assets=assets --jobs=4 main.py
+        run: python -m nuitka --standalone --assume-yes-for-downloads --follow-imports --output-dir=dist --output-filename=ice_breakers${{ matrix.ext }} --include-data-dir=assets=assets --jobs=4 --mode=app main.py
 
       - name: Make binaries executable
         if: matrix.platform == 'macos' || matrix.platform == 'linux'
-        run: chmod +x ./dist/ice_breakers || true
+        run: chmod +x ./dist/main.dist/ice_breakers || true
 
       - name: Archive files
         shell: bash
         run: |
           ls
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist/main.dist/*
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist/main.dist
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.os }}
+          name: ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            *.zip
-            *.tar.gz
+            ./*.zip
+            ./*.tar.gz
           compression-level: 0
 
 
@@ -139,7 +139,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
-          path: ./dist
+          path: ./dist/
           merge-multiple: true
 
       - name: Extract version from tag
