@@ -1,0 +1,164 @@
+name: Build and Release Binaries
+run-name: ${{ github.workflow }} for ${{ github.ref_name }}
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+    branches:
+      - main
+    paths:
+      - '**/*.py'
+      - '.github/workflows/*.yml'
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }}, ${{ matrix.python-version }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15, macos-15-intel]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            python-version: 3.13
+            archive_ext: 'tar.gz'
+            archive_cmd: 'tar -czf'
+            ext: ""
+
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            python-version: 3.13
+            archive_ext: 'tar.gz'
+            archive_cmd: 'tar -czf'
+            ext: ""
+
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            python-version: 3.12
+            archive_ext: 'zip'
+            archive_cmd: '7z a'
+            ext: ".exe"
+
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
+            python-version: 3.12
+            archive_ext: 'zip'
+            archive_cmd: '7z a'
+            ext: ".exe"
+
+          - os: macos-15
+            platform: macos
+            arch: arm64
+            python-version: 3.13
+            archive_ext: 'zip'
+            archive_cmd: 'zip -r'
+            ext: ""
+
+          - os: macos-15-intel
+            platform: macos
+            arch: x64
+            python-version: 3.13
+            archive_ext: 'zip'
+            archive_cmd: 'zip -r'
+            ext: ""
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.arch }}
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'linux'
+        run: sudo apt update --fix-missing && sudo apt install -y patchelf ccache lld
+
+      - name: Install Windows system dependencies
+        if: matrix.platform == 'windows'
+        run: choco install ccache -y
+        shell: powershell
+
+      - name: Install macOS system dependencies
+        if: matrix.platform == 'macos'
+        run: |
+          brew install ccache
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+
+      - name: Install python dependencies
+        run: pip install pygame-ce nuitka
+
+      - name: Run build script
+        shell: bash
+        run: python -m nuitka --standalone --assume-yes-for-downloads --follow-imports --output-dir=dist --output-filename=ice_breakers${{ matrix.ext }} --include-data-dir=assets --jobs=4 main.py
+
+      - name: Make binaries executable
+        if: matrix.platform == 'macos' || matrix.platform == 'linux'
+        run: chmod +x ./dist/ice_breakers || true
+
+      - name: Archive files
+        shell: bash
+        run: |
+          cd dist
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} ice_breakers${{ matrix.ext }}
+          cd ..
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: |
+            ./dist/*.zip
+            ./dist/*.tar.gz
+          compression-level: 0
+
+
+  draft-release:
+    name: Draft GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: ./dist
+          merge-multiple: true
+
+      - name: Extract version from tag
+        id: extract_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release attestation
+        uses: actions/attest-build-provenance@v3.0.0
+        with:
+          subject-path: "dist/*"
+
+      - name: Draft a release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 'version ${{ steps.extract_version.outputs.version }}'
+          tag_name: '${{ steps.extract_version.outputs.version }}'
+          target_commitish: ${{ github.sha }}
+          draft: true
+          prerelease: ${{ contains(steps.extract_version.outputs.version, 'dev') }}
+          files: dist/*
+          generate_release_notes: true
