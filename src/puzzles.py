@@ -37,7 +37,7 @@ class SkillCheck:
             )
         ).clamp(self.bar)
 
-        self.block_in_goal_timer = 1.25 / 2
+        self.block_in_goal_timer = 0
         self.block_in_goal_max = 1.25
 
         self.block_in_goal_surf = pg.Surface(

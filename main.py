@@ -1,3 +1,4 @@
+import asyncio
 import math
 import random
 import typing
@@ -23,8 +24,10 @@ class Main:
 
         self.w, self.h = 1280, 720
         self.size = pg.Vector2(self.w, self.h)
+
         self.screen = pg.display.set_mode(self.size)
         pg.display.set_caption("IceBreakers")
+        pg.display.set_icon(load_images("blocks")[0])
 
         self.clock = pg.time.Clock()
         self.fps_update_delay = pg.time.get_ticks()
@@ -43,7 +46,9 @@ class Main:
             "block": load_images("blocks", "alpha", 4.2),
             "key": load_image("key.png", "alpha", 3),
             "small_key": load_image("key.png", "alpha", 1.7),
+            "menu_bg": load_image("menu_bg.png"),
         }
+        self.images["menu_bg"] = pg.transform.scale(self.images["menu_bg"], self.size)
         self.sfx = {
             "step": load_audio("step.ogg", 0.3),
             "jump": load_audio("jump.ogg", 0.27),
@@ -56,7 +61,7 @@ class Main:
         self.load_level(0)
 
         self.font = pg.Font("assets/fonts/Minecraft-regular.otf", 32)
-        self.big_font = pg.Font("assets/fonts/Minecraft-BoldItalic.otf", 85)
+        self.big_font = pg.Font("assets/fonts/Minecraft-BoldItalic.otf", 100)
 
         self.message = 0
         self.message_rect = 0
@@ -117,16 +122,21 @@ class Main:
         self.font.set_point_size(32)
 
         self.play_button = Button(
-            text,
-            self.size // 2,
-            self.sfx["click"],
+            text, self.size // 2, self.sfx["click"], show_surround=False
         )
+        self.play_button.rect.inflate_ip(25, 25)
+        self.play_button.rect.center = self.play_button.position
 
         self.end_text = "The End.\n\nThank you so much for playing!"
         self.end_text = self.big_font.render(
             self.end_text, True, "white", wraplength=self.w
         )
         self.end_rect = self.end_text.get_rect(center=self.size // 2)
+
+        self.click_space_text = self.font.render("Space to move bar.", True, "white")
+        self.click_space_rect = self.click_space_text.get_rect(
+            center=(self.w // 2, self.h // 12)
+        )
 
         self.game_state = "menu"
 
@@ -318,7 +328,7 @@ class Main:
         self.particles.extend(
             [
                 Particle(
-                    (i, self.player.position.y - 500),
+                    (i, self.player.position.y - 750),
                     random.uniform(1.3, 3.5),
                 )
                 for i in range(-100, self.w + 100, random.randint(10, 100))
@@ -336,6 +346,8 @@ class Main:
 
         won = self.skill_check.update(self.dt)
         self.skill_check.draw(self.screen)
+
+        self.screen.blit(self.click_space_text, self.click_space_rect)
 
         if won:
             self.crystals[self.current_crystal].exists = False
@@ -413,6 +425,7 @@ class Main:
             self.advance_block = False
 
     def menu(self) -> None:
+        self.tilemap.draw(self.screen, self.images)
         self.name_rect.centery = (
             self.name_pos.y + math.sin(pg.time.get_ticks() * 0.005) * 50
         )
@@ -425,6 +438,9 @@ class Main:
             self.game_state = "game"
 
         self.play_button.draw(self.screen)
+
+        if self.play_button.hovered():
+            pg.draw.rect(self.screen, "grey", self.play_button.rect, 5)
 
         for particle in self.particles:
             particle.update(self.dt)
@@ -531,7 +547,7 @@ class Main:
                 self.message_start = 0
                 self.message_duration = 0
 
-    def run(self) -> None:
+    async def run(self) -> None:
         while self.running:
             self.screen.fill((0, 0, 20))
 
@@ -553,11 +569,10 @@ class Main:
                     self.spawn_snow()
                     self.spawn_snow_delay = pg.time.get_ticks()
 
-            self.dt = (self.clock.tick() / 1000) * 60
-            pg.display.flip()
+            self.dt = (self.clock.tick(240) / 1000) * 60
+            await asyncio.sleep(0)
 
-            if pg.key.get_pressed()[pg.K_p]:
-                self.game_state = "end"
+            pg.display.flip()
 
             if pg.time.get_ticks() - self.fps_update_delay >= 500:
                 pg.display.set_caption(f"IceBreakers | FPS: {self.clock.get_fps():.1f}")
@@ -573,4 +588,4 @@ class Main:
 
 if __name__ == "__main__":
     main = Main()
-    main.run()
+    asyncio.run(main.run())

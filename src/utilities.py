@@ -8,14 +8,16 @@ from pygame.typing import ColorLike, Point
 
 def load_image(
     relpath: str,
-    colorkey: ColorLike = "white",
+    colorkey: ColorLike = None,
     scale: float | tuple[float, float] = 1.0,
 ) -> pg.Surface:
     full_path = os.path.join(
         os.path.dirname(sys.argv[0]), "assets", "images", relpath
     )
     surf = pg.image.load(full_path)
-    if colorkey == "alpha":
+    if colorkey is None:
+        pass
+    elif colorkey == "alpha":
         surf = surf.convert_alpha()
     else:
         surf = surf.convert()

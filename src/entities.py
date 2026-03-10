@@ -17,6 +17,8 @@ class Entity:
         self.state = "idle"
         self._flipped = False
 
+        self.jump_speed = 6.5
+
         if isinstance(image, pg.Surface):
             self.image = image
             self.flipped_image = pg.transform.flip(image, True, False)
@@ -172,7 +174,7 @@ class Player(Entity):
             and self.collisions["bottom"]
             and not self.collisions["top"]
         ):
-            self.velocity.y = -6.8
+            self.velocity.y = -6
             self.jumped = True
         else:
             self.jumped = False
