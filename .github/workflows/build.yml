@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           ls
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} main.dist/
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
