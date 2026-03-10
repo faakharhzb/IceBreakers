@@ -110,9 +110,7 @@ jobs:
       - name: Archive files
         shell: bash
         run: |
-          cd dist
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} .
-          cd ..
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
