@@ -111,15 +111,13 @@ jobs:
         shell: bash
         run: |
           ls
-          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist/main.dist
+          ${{ matrix.archive_cmd }} ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }} dist/main.dist/*
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ice_breakers-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            ./*.zip
-            ./*.tar.gz
+          path: dist/main.dist
           compression-level: 0
 
 
@@ -139,7 +137,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
-          path: ./dist/
+          path: ./dist/main.dist
           merge-multiple: true
 
       - name: Extract version from tag
@@ -149,7 +147,7 @@ jobs:
       - name: Generate release attestation
         uses: actions/attest-build-provenance@v3.0.0
         with:
-          subject-path: "dist/*"
+          subject-path: "dist/main.dist/*"
 
       - name: Draft a release
         uses: softprops/action-gh-release@v2
@@ -159,5 +157,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: true
           prerelease: ${{ contains(steps.extract_version.outputs.version, 'dev') }}
-          files: dist/*
+          files: dist/main.dist/*
           generate_release_notes: true
