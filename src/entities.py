@@ -145,7 +145,7 @@ class Player(Entity):
         key = pg.key.get_pressed()
 
         if key[pg.K_w] and self.collisions["bottom"]:
-            self.velocity.y = -6.4
+            self.velocity.y = -3.8
             self.jumped = True
         else:
             self.jumped = False

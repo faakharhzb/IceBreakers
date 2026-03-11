@@ -569,7 +569,7 @@ class Main:
                     self.spawn_snow()
                     self.spawn_snow_delay = pg.time.get_ticks()
 
-            self.dt = (self.clock.tick(240) / 1000) * 60
+            self.dt = (self.clock.tick(60) / 1000) * 60
             await asyncio.sleep(0)
 
             pg.display.flip()
