@@ -60,7 +60,7 @@ class Main:
         self.tilemap = TileMap(32, 1.5)
         self.load_level(0)
 
-        self.font = pg.Font("assets/fonts/Minecraft-regular.otf", 32)
+        self.font = pg.Font("assets/fonts/Minecraft-Regular.otf", 32)
         self.big_font = pg.Font("assets/fonts/Minecraft-BoldItalic.otf", 100)
 
         self.message = 0
