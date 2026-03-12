@@ -34,6 +34,10 @@ class Main:
         pg.display.set_caption("IceBreakers")
         pg.display.set_icon(load_images("blocks")[0])
 
+        pg.mixer_music.load("assets/audio/music.ogg")
+        pg.mixer_music.play(-1)
+        pg.mixer_music.set_volume(0.3)
+
         self.clock = pg.time.Clock()
         self.fps_update_delay = pg.time.get_ticks()
 

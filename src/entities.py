@@ -75,7 +75,7 @@ class Entity:
             "left": False,
         }
 
-        self.velocity.y = min((self.velocity.y + 0.1), self.terminal_velocity)
+        self.velocity.y = min((self.velocity.y + 0.23), self.terminal_velocity)
 
         self.position.x += self.velocity.x * self.speed * dt
         self.rect.x = self.position.x
@@ -145,7 +145,7 @@ class Player(Entity):
         key = pg.key.get_pressed()
 
         if key[pg.K_w] and self.collisions["bottom"]:
-            self.velocity.y = -3.8
+            self.velocity.y = -5
             self.jumped = True
         else:
             self.jumped = False
