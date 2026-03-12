@@ -101,7 +101,7 @@ jobs:
 
       - name: Run build script
         shell: bash
-        run: python -m nuitka --standalone --assume-yes-for-downloads --follow-imports --output-dir=dist --output-filename=ice_breakers${{ matrix.ext }} --include-data-dir=assets=assets --jobs=4 main.py
+        run: python -m nuitka --lto=yes --standalone --assume-yes-for-downloads --follow-imports --output-dir=dist --output-filename=ice_breakers${{ matrix.ext }} --include-data-dir=assets=assets --jobs=4 main.py
 
       - name: Make binaries executable
         if: matrix.platform == 'macos' || matrix.platform == 'linux'
@@ -141,7 +141,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
-          path: dist/*
+          path: dist
           merge-multiple: true
 
       - name: Extract version from tag
@@ -161,5 +161,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: true
           prerelease: ${{ contains(steps.extract_version.outputs.version, 'dev') }}
-          files: dist/*
+          files: dist/*{{ matrix.archive_ext }}
           generate_release_notes: true
