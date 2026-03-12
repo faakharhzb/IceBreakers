@@ -1,4 +1,6 @@
 import asyncio
+import sys
+import platform
 import math
 import random
 import typing
@@ -13,6 +15,9 @@ from src.utilities import load_image, load_images, load_audio
 from src.gui_elements import Button
 from src.puzzles import Clicker, SkillCheck
 from src.key import Key
+
+if sys.platform == "emscripten":
+    platform.window.canvas.style.imageRendering = "pixelated"
 
 
 class Main:
@@ -108,6 +113,7 @@ class Main:
 
         self.dt = 1
         self.running = True
+        self.idx = 5
 
         self.name_surf = self.big_font.render(
             pg.display.get_caption()[0], True, "white"
@@ -244,10 +250,7 @@ class Main:
         self.extract_button.position = crystal.position.copy()
         self.extract_button.position.y -= 50
 
-        if (
-            self.extract_button.clicked(self.offset)
-            or pg.key.get_just_pressed()[pg.K_e]
-        ):
+        if self.extract_button.clicked(self.offset) or pg.key.get_pressed()[pg.K_e]:
             self.sfx["click"].play()
             self.current_crystal = self.crystals.index(crystal)
             size = self.size - (self.size // 10)
@@ -272,7 +275,7 @@ class Main:
             self.block.start_y + math.sin(pg.time.get_ticks() * 0.0065) * 5
         ) - 50
 
-        if self.break_button.clicked(self.offset) or pg.key.get_just_pressed()[pg.K_e]:
+        if self.break_button.clicked(self.offset) or pg.key.get_pressed()[pg.K_e]:
             self.sfx["click"].play()
             if not self.player.crystal_amount:
                 self.show_message("You have no crystals.", dur=1500)
@@ -307,10 +310,7 @@ class Main:
             self.block.start_y + math.sin(pg.time.get_ticks() * 0.0065) * 5
         ) - 50
 
-        if (
-            self.collect_key_button.clicked(self.offset)
-            or pg.key.get_just_pressed()[pg.K_e]
-        ):
+        if self.collect_key_button.clicked(self.offset) or pg.key.get_pressed()[pg.K_e]:
             self.sfx["win"].play()
             self.current_keys += 1
             self.key.exists = False
@@ -573,6 +573,9 @@ class Main:
             await asyncio.sleep(0)
 
             pg.display.flip()
+            if pg.key.get_pressed()[pg.K_p]:
+                pg.image.save(self.screen, f"image_{self.idx}.png")
+                self.idx += 1
 
             if pg.time.get_ticks() - self.fps_update_delay >= 500:
                 pg.display.set_caption(f"IceBreakers | FPS: {self.clock.get_fps():.1f}")

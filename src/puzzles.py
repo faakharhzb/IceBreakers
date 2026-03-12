@@ -176,7 +176,7 @@ class Clicker:
     def draw(self, screen: pg.Surface) -> None:
         screen.blit(self.surf, self.rect)
         for spot in self.spots:
-            spot.radius += 0.07
+            spot.radius += 0.5
             pg.draw.circle(
                 screen, (48, 46, 44), spot.rect.center, spot.radius
             )

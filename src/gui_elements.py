@@ -44,18 +44,10 @@ class Button:
             point = pg.Vector2(self.rect.center)
             mpos = pg.Vector2(pg.mouse.get_pos()) + offset
 
-            hovered = (
-                True
-                if point.distance_to(mpos) <= self.radius
-                else False
-            )
+            hovered = True if point.distance_to(mpos) <= self.radius else False
         else:
-            rect = (
-                self.surround_rect if self.show_surround else self.rect
-            )
-            hovered = rect.collidepoint(
-                pg.Vector2(pg.mouse.get_pos()) + offset
-            )
+            rect = self.surround_rect if self.show_surround else self.rect
+            hovered = rect.collidepoint(pg.Vector2(pg.mouse.get_pos()) + offset)
         if hovered and self.show_surround:
             self.show_outline = True
         else:
@@ -63,14 +55,8 @@ class Button:
 
         return hovered
 
-    def clicked(
-        self, offset: pg.Vector2 = pg.Vector2(), circle: bool = False
-    ) -> bool:
-        clicked = (
-            pg.mouse.get_just_pressed()[0]
-            if self.hovered(offset, circle)
-            else False
-        )
+    def clicked(self, offset: pg.Vector2 = pg.Vector2(), circle: bool = False) -> bool:
+        clicked = pg.mouse.get_pressed()[0] if self.hovered(offset, circle) else False
         if clicked and self.sound is not None:
             self.sound.play()
 
@@ -87,9 +73,7 @@ class Button:
             self.surround_rect.center = self.position
 
         if circle:
-            pg.draw.aacircle(
-                screen, "grey", self.rect.center, self.base_radius
-            )
+            pg.draw.aacircle(screen, "grey", self.rect.center, self.base_radius)
         else:
             screen.blit(self.image, self.position - offset)
 
